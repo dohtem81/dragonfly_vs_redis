@@ -1,85 +1,92 @@
-# Dragonfly & Redis Pub/Sub Docker Setup
+# Redis vs Dragonfly — Pub/Sub Performance Comparison
 
-This project demonstrates difference between a Docker-based pub/sub system using Redis and Dragonfly with 5 containers:
-- 1 Dragonfly instance
-- 1 Redis instance
-- 3 C++ programs (2 publishers, 1 subscriber)
+This repository contains a practical pub/sub performance comparison between Redis and Dragonfly, using identical C++ subscribers and a shared Docker-based environment.
 
-## Architecture
+The goal is not to declare a "winner", but to observe how architectural differences show up under a simple, reproducible workload.
 
-- **Dragonfly** (port 6379): High-performance Redis-compatible data store
-- **Redis** (port 6380): Traditional Redis instance
-- **cpp-pub-dragonfly**: Publishes messages to Dragonfly on drgonfly instance
-- **cpp-pub-redis**: Publishes messages to Redis on redis instance
-- **cpp-sub**: Subscribes to both channels simultaneously using separate threads
+## Motivation
 
-## Prerequisites
+Redis is a widely adopted, battle-tested in-memory data store. Dragonfly is a newer, Redis-compatible system designed to better utilize modern multi-core CPUs.
 
-- Docker
-- Docker Compose
+I wanted to answer a straightforward question:
 
-## Usage
+> Under identical pub/sub workloads, how do Redis and Dragonfly compare in subscriber throughput?
 
-### Start all containers:
+## Test Overview
+
+- One publisher sends messages to a single channel
+- Two independent subscribers (Redis and Dragonfly)
+- Subscribers consume messages until a fixed maximum count is reached
+- Wall-clock completion time is measured
+
+Both subscribers:
+
+- Use the same C++ implementation
+- Subscribe to the same channel name
+- Run in the same Docker environment
+
+## Environment
+
+- Docker / Docker Compose
+- Redis running on port 6380
+- Dragonfly running on port 6379
+- Identical client logic and message limits
+
+**Note:** Absolute performance is affected by Docker networking and host scheduling. Results are intended for relative comparison only.
+
+## Results
+
+### Pub/Sub Subscriber Completion Time
+
+| System     | Completion Time |
+|------------|-----------------|
+| Redis      | 55,186 ms       |
+| Dragonfly  | 31,127 ms       |
+
+**Observation:**  
+Dragonfly completed consumption of the same number of messages approximately **1.77× faster** than Redis under identical conditions.
+
+### Raw Output
+
+```
+[REDIS] Subscriber stopped. Completed in 55186 ms.
+[DRAGONFLY] Subscriber stopped. Completed in 31127 ms.
+```
+
+## Interpretation
+
+This result is consistent with Dragonfly's multi-threaded architecture, which can more effectively utilize multiple CPU cores for pub/sub message fan-out compared to Redis' single-threaded event loop.
+
+Even in a Dockerized environment — where performance differences are often muted — the throughput gap is still visible.
+
+## Caveats & Limitations
+
+- This test measures subscriber completion time, not per-message latency
+- Only a single pub/sub workload is evaluated
+- Results should not be generalized to all Redis or Dragonfly use cases
+- No persistence, replication, or clustering features are enabled
+
+This repository is intended as a focused, minimal comparison, not a comprehensive benchmark suite.
+
+## Reproducibility
+
+Build and start services:
+
 ```bash
 docker-compose up --build
 ```
 
-### Start in detached mode:
-```bash
-docker-compose up -d --build
-```
+Observe subscriber logs for completion times.
 
-### Stop all containers:
-```bash
-docker-compose down
-```
+All configuration and client code are included in this repository to allow independent reproduction of results.
 
-## How It Works
+## Future Work
 
-1. **Publishers**: Each publisher connects to its respective data store and publishes a message every 2 seconds with a timestamp
-2. **Subscriber**: The subscriber maintains two persistent connections (one to Dragonfly, one to Redis) and listens for messages on both channels using separate threads
-3. **Messages**: Include sequence numbers and timestamps to track message flow
+- Scaling tests with increasing message counts
+- Latency distribution analysis
+- Multi-subscriber fan-out scenarios
+- Non-pub/sub workloads (e.g. GET/SET, pipelines)
 
-## Network
+## Summary
 
-All containers communicate over a bridge network called `pubsub_network`.
-
-## Environment Variables
-
-Each container uses environment variables for configuration:
-- `HOST`: Server hostname
-- `PORT`: Server port
-- `CHANNEL`: Pub/sub channel name
-
-## Running Tests
-
-This is a test setup without healthcheck dependencies between containers. Tests must be run manually to ensure controlled conditions.
-
-### Test Procedure
-
-1. **Start the subscriber first:**
-    ```bash
-    docker exec -it cpp-sub /app/sub_both
-    ```
-    The subscriber will display summarized results in its console.
-
-2. **Run publishers sequentially** (not simultaneously) to ensure identical test conditions:
-    
-    **First, test Redis:**
-    ```bash
-    docker exec -it cpp-pub-redis sh -c '/var/build/pub_combined ${REDIS_HOST} ${REDIS_PORT} ${TEST_CHANNEL} ${REDIS_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}'
-    ```
-    
-    **Wait for completion, then test Dragonfly:**
-    ```bash
-    docker exec -it cpp-pub-dragonfly sh -c '/var/build/pub_combined ${DRAGONFLY_HOST} ${DRAGONFLY_PORT} ${TEST_CHANNEL} ${DRAGONFLY_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}'
-    ```
-
-3. **View results** in the subscriber container console.
-
-### Configuration
-
-Test parameters are defined in the `.env` file.
-
-**Note:** This is a simplified testing approach (KISS principle) and not intended for production use.
+Under a simple, controlled pub/sub workload, Dragonfly demonstrated significantly faster subscriber throughput than Redis. This highlights how architectural decisions become visible even in minimal, real-world tests.
