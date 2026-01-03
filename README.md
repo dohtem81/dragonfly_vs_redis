@@ -1,6 +1,6 @@
 # Dragonfly & Redis Pub/Sub Docker Setup
 
-This project demonstrates a Docker-based pub/sub system with 5 containers:
+This project demonstrates difference between a Docker-based pub/sub system using Redis and Dragonfly with 5 containers:
 - 1 Dragonfly instance
 - 1 Redis instance
 - 3 C++ programs (2 publishers, 1 subscriber)
@@ -30,17 +30,6 @@ docker-compose up --build
 docker-compose up -d --build
 ```
 
-### View logs:
-```bash
-# All containers
-docker-compose logs -f
-
-# Specific container
-docker-compose logs -f cpp-sub
-docker-compose logs -f cpp-pub-dragonfly
-docker-compose logs -f cpp-pub-redis
-```
-
 ### Stop all containers:
 ```bash
 docker-compose down
@@ -63,7 +52,6 @@ Each container uses environment variables for configuration:
 - `PORT`: Server port
 - `CHANNEL`: Pub/sub channel name
 
-## How to use
 ## Running Tests
 
 This is a test setup without healthcheck dependencies between containers. Tests must be run manually to ensure controlled conditions.
