@@ -68,12 +68,12 @@ This is a test setup without healthcheck dependencies between containers. Tests 
     
     **First, test Redis:**
     ```bash
-    docker exec -it cpp-pub-redis /app/pub_combined ${REDIS_HOST} ${REDIS_PORT} ${TEST_CHANNEL} ${REDIS_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}
+    docker exec -it cpp-pub-redis sh -c '/var/build/pub_combined ${REDIS_HOST} ${REDIS_PORT} ${TEST_CHANNEL} ${REDIS_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}'
     ```
     
     **Wait for completion, then test Dragonfly:**
     ```bash
-    docker exec -it cpp-pub-dragonfly /app/pub_combined ${DRAGONFLY_HOST} ${DRAGONFLY_PORT} ${TEST_CHANNEL} ${DRAGONFLY_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}
+    docker exec -it cpp-pub-dragonfly sh -c '/var/build/pub_combined ${DRAGONFLY_HOST} ${DRAGONFLY_PORT} ${TEST_CHANNEL} ${DRAGONFLY_PUB_NAME} ${MESSAGE_COUNT} ${THREAD_COUNT}'
     ```
 
 3. **View results** in the subscriber container console.
