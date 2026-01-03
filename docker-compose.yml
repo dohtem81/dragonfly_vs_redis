@@ -1,0 +1,80 @@
+services:
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    container_name: dragonfly
+    ports:
+      - "6379:6379"
+    networks:
+      - pubsub_network
+    command: dragonfly --logtostderr
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6380:6380"
+    networks:
+      - pubsub_network
+    command: redis-server --port 6380
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  cpp-sub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PROGRAM: sub_both
+    container_name: cpp-sub
+    depends_on:
+      dragonfly:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pubsub_network
+    env_file:
+      - .env
+
+    restart: "no"
+    tty: true    
+
+  cpp-pub-dragonfly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PROGRAM: pub_combined
+    container_name: cpp-pub-dragonfly
+    env_file:
+      - .env    
+    networks:
+      - pubsub_network
+    restart: "no"
+    tty: true
+
+  cpp-pub-redis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PROGRAM: pub_combined
+    container_name: cpp-pub-redis
+    env_file:
+      - .env      
+    networks:
+      - pubsub_network
+    restart: "no"
+    tty: true    
+
+networks:
+  pubsub_network:
+    driver: bridge
